@@ -1,0 +1,30 @@
+{
+  "fecha": "2026-09-29 03:10",
+  "n_configuraciones": 2,
+  "corridas": [
+    {
+      "etiqueta": "multiclase_con_pesos_s42",
+      "pesos_de_clase": true,
+      "semilla": 42,
+      "epocas": 12,
+      "f1_macro": 0.6026473948715797,
+      "f1_weighted": 0.7851792183652444,
+      "accuracy": 0.6690278423268939,
+      "recall_benign": 0.6248441138252505,
+      "benign_a_infiltration": 551323,
+      "benign_mal_clasificados": 559234
+    },
+    {
+      "etiqueta": "multiclase_sin_pesos_s42",
+      "pesos_de_clase": false,
+      "semilla": 42,
+      "epocas": 18,
+      "f1_macro": 0.7520991121713183,
+      "f1_weighted": 0.9842285357310891,
+      "accuracy": 0.9888159475715594,
+      "recall_benign": 0.9992533563744113,
+      "benign_a_infiltration": 544,
+      "benign_mal_clasificados": 1113
+    }
+  ]
+}
