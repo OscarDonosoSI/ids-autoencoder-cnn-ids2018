@@ -1,0 +1,26 @@
+# Dependencias fijadas del estudio jcp-4572356 (CSE-CIC-IDS2018)
+# Entorno de referencia: Google Colaboratory, NVIDIA Tesla T4 (15,360 MB VRAM), 12 GB RAM
+# Python 3.12.13
+
+# --- Nucleo numerico ---------------------------------------------------------
+numpy==2.0.2
+pandas==2.2.2
+scipy==1.14.1
+pyarrow==17.0.0
+
+# --- Aprendizaje automatico --------------------------------------------------
+torch==2.11.0
+scikit-learn==1.8.0
+xgboost==2.1.4
+joblib==1.4.2
+
+# --- Descarga del conjunto de datos -----------------------------------------
+boto3==1.35.36
+botocore==1.35.36
+
+# --- Figuras -----------------------------------------------------------------
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# Nota: torch se instala con la rueda correspondiente a CUDA 12.8.
+#   pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
