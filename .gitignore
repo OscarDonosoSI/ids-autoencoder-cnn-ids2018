@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Proyecto IDS2018 ---
+# Los datos no se versionan: el script los descarga y los reconstruye
+data/
+*.parquet
+*.memmap
+*.npy
+
+# Los pesos de los modelos se distribuyen como adjuntos de la release
+*.pt
+*.pth
