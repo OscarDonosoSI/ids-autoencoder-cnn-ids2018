@@ -28,6 +28,7 @@ The headline result is that those two decisions move the reported score by rough
 | Release | Contents |
 |---|---|
 | **v1.0** (commit `68308eb`, 30 July 2026) | Results of record for Tables 4, 5, 6 and A2 of the manuscript: autoencoder, binary CNN-1D and multiclass CNN-1D, single seed 42. |
+| **v2.1** | Corrects the numerical errors identified in the second round of revision, documents the origin of the imputed missing values and fixes the cleaning chunk size at the value with which the published dataset was generated. |
 | **v2.0** | Adds the three-seed class-weighting ablation, the run-to-run variability analysis, the Random Forest and XGBoost baselines, the end-to-end reproduction script and this README. |
 
 `v1.0` is preserved unchanged so that every figure cited in the published article remains retrievable at the commit the Data Availability Statement names.
@@ -82,7 +83,17 @@ python reproducir_pipeline_completo.py --raiz ./ids2018 --etapa ablacion
 
 ## Verification built into the pipeline
 
-The cleaning stage aborts rather than continue if the data does not match the published dataset. It checks the raw flow count (13,087,277), the cleaned flow count (11,346,511), the feature count (65), the number of imputed NaN values (3,270,477) and every one of the fifteen per-class counts in Table 1. The partition stage checks the three subset sizes (7,947,096 / 1,697,438 / 1,701,977). Any divergence surfaces at the point where it occurs instead of propagating silently into the metrics.
+The cleaning stage aborts rather than continue if the data does not match the published dataset. It checks the raw flow count (13,087,277), the cleaned flow count (11,346,511), the names of the 65 features and every one of the fifteen per-class counts in Table 1. The partition stage checks the three subset sizes (7,947,096 / 1,697,438 / 1,701,977). The number of imputed missing values is reported but deliberately not asserted, for the reason given next. Any divergence in the asserted quantities surfaces at the point where it occurs instead of propagating silently into the metrics.
+
+### Why the missing values exist, and why the chunk size matters
+
+The cleaning stage drops any attribute whose variance is zero *within a chunk*. Chunks that lose different attributes introduce missing values when they are concatenated, and that is where the 3,270,477 imputed values come from — not from any undefined flow statistic. They are concentrated in nine attributes, led by `FIN Flag Cnt`, `Active Std` and `Bwd Pkt Len Min`. Every attribute discarded by that rule was constant at zero in the chunk that discarded it, so imputing zero restores the original value.
+
+The consequence is that the chunk size, which looks like a memory-tuning parameter with no bearing on the result, influences how many flows survive deduplication. For `Wednesday-21-02-2018` it yields 638,999 flows at 100,000 rows per chunk and 603,678 at 200,000, with 2,415,620 and 1,599,574 missing values respectively.
+
+`reproducir_pipeline_completo.py --raiz <dir> --autotest` verifies this in about twenty seconds plus the time to read one file. It reprocesses `Wednesday-21-02-2018` from its raw CSV and compares the result against the published parquet for that day, row count, column names, missing values per column and label distribution. It needs only that one source file (330 MB) and no GPU. The check passes at 100,000 and fails at 200,000, which is what establishes the value.
+
+**The published dataset was generated with a chunk size of 100,000.** The notebook records 200,000 because the parameter was changed after the parquet files had been written, and `procesar_archivo` skips files that already exist on disk, so the new value never took effect. `reproducir_pipeline_completo.py` fixes the value at 100,000; reproducing the dataset with 200,000 is not possible.
 
 ---
 
@@ -99,7 +110,7 @@ That residual variation is not a footnote in this study; it is one of its result
 | Recall, Benign | 0.5661 ± 0.0674 | 0.9994 ± 0.0002 |
 | Benign labelled Infilteration | 42.90% ± 6.71 | 0.02% ± 0.02 |
 
-Three runs of identical code in the weighted arm produced benign recall of 0.50 and 0.64. Reporting a single seed for that configuration is reproducible in its headline number and not reproducible in its operational meaning.
+Three runs of the weighted arm, differing only in the random seed (42, 7 and 123), produced benign recall of 0.6248, 0.4925 and 0.5809. Reporting a single seed for that configuration is reproducible in its headline number and not reproducible in its operational meaning.
 
 **One honest caveat.** The model weights of the original single-seed multiclass run behind Tables 4, 6 and A2 were overwritten during a later execution of the pipeline and could not be recovered. Those tables are derived from the evaluation output serialised at the time of the original run, which is published here under `results/v1.0/`. That run is documented but not re-executable weight-for-weight. This is stated in the manuscript's Limitations, and it is why the ablation was designed to be seed-explicit and fully re-executable from raw data.
 

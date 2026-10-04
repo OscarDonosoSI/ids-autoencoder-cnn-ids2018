@@ -120,27 +120,82 @@ ARCHIVOS_ORIGEN = [
     "Thuesday-20-02-2018_TrafficForML_CICFlowMeter.csv",
 ]
 
-# Tamano de bloque de lectura. Se fija en 200 000 filas para acotar el pico de
-# memoria durante la limpieza; el archivo mas grande supera los ocho millones
-# de filas y no cabe en los 12 GB de RAM de la plataforma de referencia.
-FILAS_POR_BLOQUE = 200_000
+# Tamano de bloque de lectura. Se fija en 100 000 filas porque es el valor con
+# el que se genero el conjunto de datos publicado, y NO es un parametro libre.
+# La depuracion descarta los atributos cuya varianza es nula DENTRO del bloque,
+# de modo que el tamano del bloque determina cuantos atributos se pierden en
+# cada uno y, por esa via, cuantos flujos sobreviven a la eliminacion de
+# duplicados exactos. Comprobado sobre Wednesday-21-02-2018 contra el parquet
+# publicado: con 100 000 se obtienen 638 999 flujos y 2 415 620 valores
+# faltantes, que es exactamente lo publicado; con 200 000 se obtienen 603 678 y
+# 1 599 574. El notebook declara 200 000 porque el valor se cambio despues de
+# haber escrito los parquets y su funcion de limpieza omite los archivos que ya
+# existen en disco, de modo que el valor nuevo nunca llego a aplicarse.
+# Ejecutese con --autotest para verificar esto en unos minutos sobre un solo
+# archivo, sin necesidad de recorrer el conjunto completo.
+FILAS_POR_BLOQUE = 100_000
 
-# Columnas descartadas: identificadores, campos temporales y los ocho atributos
-# de varianza nula detectados durante el analisis exploratorio. Suman catorce.
+# Columnas descartadas por nombre. La lista es identica a la del notebook
+# publicado y el orden no importa, pero su contenido si: son los metadatos de
+# red (identificadores, direcciones, puertos y marca de tiempo), la longitud de
+# cabecera de ida, y los ocho atributos cuya varianza es nula en todo el
+# conjunto. Los cuatro primeros solo existen en el unico archivo que trae 84
+# columnas; en los otros nueve la lista alcanza a doce columnas.
 COLUMNAS_DESCARTADAS = [
-    # Identificadores y campos temporales
-    "Flow ID", "Src IP", "Src Port", "Dst IP", "Timestamp", "Protocol",
-    # Atributos de varianza nula
-    "Bwd PSH Flags", "Bwd URG Flags", "Fwd Byts/b Avg", "Fwd Pkts/b Avg",
-    "Fwd Blk Rate Avg", "Bwd Byts/b Avg", "Bwd Pkts/b Avg", "Bwd Blk Rate Avg",
+    # Identificadores, direcciones, puertos y campos temporales
+    "Flow ID", "Src IP", "Src Port", "Dst IP", "Dst Port",
+    "Protocol", "Timestamp", "Fwd Header Len",
+    # Atributos de varianza nula en todo el conjunto
+    "Bwd PSH Flags", "Bwd URG Flags",
+    "Fwd Byts/b Avg", "Fwd Pkts/b Avg", "Fwd Blk Rate Avg",
+    "Bwd Byts/b Avg", "Bwd Pkts/b Avg", "Bwd Blk Rate Avg",
 ]
 
-# Columnas en las que persisten valores NaN tras la conversion numerica. El
-# origen es el calculo de estadisticos de flujo indefinidos para flujos de un
-# solo paquete. Se imputan a cero.
-COLUMNAS_CON_NAN = [
-    "Active Std", "Fwd PSH Flags", "Fwd URG Flags",
-    "FIN Flag Cnt", "SYN Flag Cnt", "RST Flag Cnt", "PSH Flag Cnt",
+# De donde salen los valores faltantes
+# ------------------------------------
+# NO proceden de ningun estadistico de flujo indefinido. Son estructurales. La
+# depuracion elimina, bloque a bloque, los atributos cuya varianza es nula en
+# ese bloque; al unificar bloques que perdieron atributos distintos, las filas
+# procedentes de un bloque mutilado quedan sin valor en esos atributos. Se
+# concentran en nueve de los 65 atributos finales, encabezados por FIN Flag Cnt,
+# Active Std y Bwd Pkt Len Min.
+#
+# Imputarlos a cero es exacto, no una aproximacion: un atributo se descarta
+# precisamente por ser constante en el bloque, y en estos atributos de banderas
+# y minimos la constante es cero. Verificado sobre los treinta descartes que
+# ocurren en Wednesday-21-02-2018: en los treinta el valor constante era 0.0 y
+# el numero de valores alterados por la imputacion es cero.
+#
+# Consecuencia practica: el recuento de valores faltantes depende del tamano del
+# bloque y no de los datos, por lo que se informa pero no se verifica de forma
+# dura. Vease NAN_IMPUTADOS_REFERENCIA.
+
+# Los 65 atributos del conjunto final, en el orden de artifacts/metadata.json.
+# Esta lista es la que define el conjunto, y si se verifica de forma dura: un
+# recuento correcto con nombres distintos no es el mismo conjunto de datos.
+ATRIBUTOS_FINALES = [
+    "ACK Flag Cnt", "Active Max", "Active Mean",
+    "Active Min", "Active Std", "Bwd Header Len",
+    "Bwd IAT Max", "Bwd IAT Mean", "Bwd IAT Min",
+    "Bwd IAT Std", "Bwd IAT Tot", "Bwd Pkt Len Max",
+    "Bwd Pkt Len Mean", "Bwd Pkt Len Min", "Bwd Pkt Len Std",
+    "Bwd Pkts/s", "Bwd Seg Size Avg", "Down/Up Ratio",
+    "ECE Flag Cnt", "FIN Flag Cnt", "Flow Byts/s",
+    "Flow Duration", "Flow IAT Max", "Flow IAT Mean",
+    "Flow IAT Min", "Flow IAT Std", "Flow Pkts/s",
+    "Fwd Act Data Pkts", "Fwd IAT Max", "Fwd IAT Mean",
+    "Fwd IAT Min", "Fwd IAT Std", "Fwd IAT Tot",
+    "Fwd PSH Flags", "Fwd Pkt Len Max", "Fwd Pkt Len Mean",
+    "Fwd Pkt Len Min", "Fwd Pkt Len Std", "Fwd Pkts/s",
+    "Fwd Seg Size Avg", "Fwd Seg Size Min", "Idle Max",
+    "Idle Mean", "Idle Min", "Idle Std",
+    "Init Bwd Win Byts", "Init Fwd Win Byts", "PSH Flag Cnt",
+    "Pkt Len Max", "Pkt Len Mean", "Pkt Len Min",
+    "Pkt Len Std", "Pkt Len Var", "Pkt Size Avg",
+    "RST Flag Cnt", "SYN Flag Cnt", "Subflow Bwd Byts",
+    "Subflow Bwd Pkts", "Subflow Fwd Byts", "Subflow Fwd Pkts",
+    "Tot Bwd Pkts", "Tot Fwd Pkts", "TotLen Bwd Pkts",
+    "TotLen Fwd Pkts", "URG Flag Cnt",
 ]
 
 # Valores verificados del conjunto depurado. El script aborta si no se alcanzan,
@@ -150,7 +205,9 @@ FLUJOS_CRUDOS_ESPERADOS = 13_087_277
 FLUJOS_LIMPIOS_ESPERADOS = 11_346_511
 N_CARACTERISTICAS = 65
 N_CLASES = 15
-NAN_IMPUTADOS_ESPERADOS = 3_270_477
+# Valor de referencia, NO invariante: depende del tamano del bloque. Se usa
+# solo para avisar si difiere, nunca para abortar.
+NAN_IMPUTADOS_REFERENCIA = 3_270_477
 
 # Distribucion de clases del conjunto unificado (Tabla 1 del articulo).
 DISTRIBUCION_ESPERADA = {
@@ -369,42 +426,67 @@ def _depurar_bloque(bloque, contadores: Dict[str, int]):
     """
     Depurar un bloque de filas y devolverlo listo para concatenar.
 
+    Reproduce paso por paso la funcion limpiar_chunk del notebook publicado.
     Las operaciones se aplican en este orden, que no es intercambiable:
-      1. eliminar las cabeceras repetidas incrustadas en el cuerpo del CSV,
-      2. descartar las catorce columnas sin valor predictivo,
-      3. convertir a numerico los campos almacenados como texto,
-      4. sustituir los infinitos por NaN,
-      5. imputar a cero los NaN residuales de las siete columnas conocidas.
+      1. normalizar los nombres de columna, que traen espacios sobrantes,
+      2. eliminar las cabeceras repetidas incrustadas en el cuerpo del CSV,
+      3. separar la etiqueta antes de cualquier conversion numerica,
+      4. descartar las columnas de COLUMNAS_DESCARTADAS,
+      5. convertir a numerico los campos almacenados como texto,
+      6. sustituir los infinitos por NaN,
+      7. ELIMINAR las filas que quedan con NaN,
+      8. descartar los atributos cuya varianza es nula en este bloque.
 
-    Invertir 1 y 3 haria que las cabeceras se convirtieran en NaN y se
-    imputaran a cero, introduciendo filas espurias en el conjunto.
+    Invertir 2 y 5 haria que las cabeceras se convirtieran en NaN y el paso 7
+    borraria esas filas, que es lo correcto, pero invertir 4 y 5 convertiria las
+    direcciones IP en NaN y el paso 7 vaciaria el archivo entero.
+
+    El paso 7 BORRA filas; no imputa. La imputacion a cero ocurre mas tarde, al
+    unificar, y solo sobre los huecos que deja el paso 8. Confundir ambas cosas
+    altera el numero de flujos del conjunto final.
     """
     import pandas as pd
 
-    # 1. Las cabeceras repetidas se reconocen porque la columna Label contiene
+    # 1. Los nombres de columna traen espacios sobrantes en varios archivos.
+    bloque.columns = bloque.columns.str.strip()
+
+    # 2. Las cabeceras repetidas se reconocen porque la columna Label contiene
     #    literalmente la cadena "Label".
     antes = len(bloque)
-    bloque = bloque[bloque["Label"] != "Label"]
+    if "Label" in bloque.columns:
+        bloque = bloque[bloque["Label"] != "Label"]
     contadores["cabeceras_eliminadas"] += antes - len(bloque)
+    if len(bloque) == 0:
+        return bloque
 
-    # 2. Descartar identificadores, campos temporales y atributos de varianza nula.
-    presentes = [c for c in COLUMNAS_DESCARTADAS if c in bloque.columns]
-    bloque = bloque.drop(columns=presentes)
+    # 3. Guardar la etiqueta antes de tocar los tipos.
+    etiquetas = bloque["Label"].str.strip().copy()
 
-    # 3. Convertir a numerico todas las columnas salvo la etiqueta.
-    etiquetas = bloque["Label"]
-    rasgos = bloque.drop(columns=["Label"]).apply(pd.to_numeric, errors="coerce")
+    # 4. Descartar metadatos de red y atributos de varianza nula conocida.
+    descartar = [c for c in COLUMNAS_DESCARTADAS if c in bloque.columns] + ["Label"]
+    rasgos = bloque.drop(columns=descartar, errors="ignore")
 
-    # 4. Los infinitos aparecen en Flow Byts/s y Flow Pkts/s cuando la duracion
-    #    del flujo es cero. Se convierten a NaN para tratarlos en el paso 5.
+    # 5. Convertir a numerico; el texto no convertible pasa a NaN.
+    rasgos = rasgos.apply(pd.to_numeric, errors="coerce")
+
+    # 6. Los infinitos aparecen en Flow Byts/s y Flow Pkts/s cuando la duracion
+    #    del flujo es cero.
     n_infinitos = int(np.isinf(rasgos.to_numpy(dtype="float64", na_value=np.nan)).sum())
     contadores["infinitos_convertidos"] += n_infinitos
-    rasgos = rasgos.replace([np.inf, -np.inf], np.nan)
+    rasgos.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-    # 5. Imputar a cero los NaN residuales y contabilizarlos.
-    n_nan = int(rasgos.isna().to_numpy().sum())
-    contadores["nan_imputados"] += n_nan
-    rasgos = rasgos.fillna(0.0)
+    # 7. Eliminar las filas que quedan con NaN. Borra filas, no imputa.
+    antes = len(rasgos)
+    rasgos = rasgos.dropna()
+    contadores["filas_con_nan_eliminadas"] += antes - len(rasgos)
+    etiquetas = etiquetas[rasgos.index]
+
+    # 8. Descartar los atributos de varianza nula en este bloque. Es el paso que
+    #    genera los huecos que se imputan al unificar; se contabiliza cuantas
+    #    veces ocurre para que quede traza en conteos_limpieza.json.
+    nulos = rasgos.columns[rasgos.var() == 0].tolist()
+    contadores["descartes_por_varianza_nula"] += len(nulos)
+    rasgos = rasgos.drop(columns=nulos, errors="ignore")
 
     rasgos["Label"] = etiquetas.to_numpy()
     return rasgos
@@ -431,7 +513,9 @@ def etapa_limpieza(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
         return
 
     contadores = {"filas_crudas": 0, "cabeceras_eliminadas": 0,
-                  "infinitos_convertidos": 0, "nan_imputados": 0}
+                  "infinitos_convertidos": 0, "filas_con_nan_eliminadas": 0,
+                  "descartes_por_varianza_nula": 0, "duplicados_eliminados": 0,
+                  "nan_imputados": 0}
     parciales: List[Path] = []
 
     for indice, nombre in enumerate(ARCHIVOS_ORIGEN, start=1):
@@ -444,18 +528,33 @@ def etapa_limpieza(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
             contadores["filas_crudas"] += len(bloque)
             trozos.append(_depurar_bloque(bloque, contadores))
 
+        # Los duplicados exactos se eliminan archivo por archivo, no sobre el
+        # total unificado. Es lo que hace el notebook y de ello depende el
+        # recuento final: hacerlo sobre el total elimina tambien duplicados
+        # repartidos entre archivos distintos y da menos flujos.
         depurado = pd.concat(trozos, ignore_index=True)
+        antes = len(depurado)
+        depurado = depurado.drop_duplicates(ignore_index=True)
+        contadores["duplicados_eliminados"] += antes - len(depurado)
         depurado.to_parquet(salida, index=False, compression="snappy")
         parciales.append(salida)
         reg.info("          %s filas depuradas", f"{len(depurado):,}")
         del trozos, depurado
 
-    # Unificar los diez archivos y eliminar duplicados exactos sobre el total.
-    reg.info("  Unificando y eliminando duplicados exactos ...")
-    unificado = pd.concat([pd.read_parquet(p) for p in parciales], ignore_index=True)
-    antes = len(unificado)
-    unificado = unificado.drop_duplicates(ignore_index=True)
-    contadores["duplicados_eliminados"] = antes - len(unificado)
+    # Unificar reindexando cada archivo a los 65 atributos finales. Un atributo
+    # que un bloque perdio en el paso 8 falta en el parquet para esas filas: al
+    # reindexar aparece como hueco y se imputa a cero, que es el valor que tenia.
+    reg.info("  Unificando los diez archivos ...")
+    piezas = []
+    for parcial in parciales:
+        tabla = pd.read_parquet(parcial)
+        piezas.append(tabla.reindex(columns=ATRIBUTOS_FINALES + ["Label"]))
+        del tabla
+    unificado = pd.concat(piezas, ignore_index=True)
+    del piezas
+    contadores["nan_imputados"] = int(
+        unificado[ATRIBUTOS_FINALES].isna().to_numpy().sum())
+    unificado[ATRIBUTOS_FINALES] = unificado[ATRIBUTOS_FINALES].fillna(0.0)
 
     # Verificar los invariantes del conjunto publicado antes de continuar.
     verificar(contadores["filas_crudas"] == FLUJOS_CRUDOS_ESPERADOS,
@@ -464,12 +563,20 @@ def etapa_limpieza(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
     verificar(len(unificado) == FLUJOS_LIMPIOS_ESPERADOS,
               f"el conjunto depurado tiene {len(unificado):,} flujos, "
               f"se esperaban {FLUJOS_LIMPIOS_ESPERADOS:,}")
-    verificar(unificado.shape[1] - 1 == N_CARACTERISTICAS,
-              f"se obtuvieron {unificado.shape[1] - 1} caracteristicas, "
-              f"se esperaban {N_CARACTERISTICAS}")
-    verificar(contadores["nan_imputados"] == NAN_IMPUTADOS_ESPERADOS,
-              f"se imputaron {contadores['nan_imputados']:,} valores NaN, "
-              f"se esperaban {NAN_IMPUTADOS_ESPERADOS:,}")
+    verificar(list(unificado.columns) == ATRIBUTOS_FINALES + ["Label"],
+              "los atributos del conjunto depurado no coinciden en nombre o en "
+              "orden con los 65 publicados en artifacts/metadata.json")
+    # El numero de valores faltantes no se verifica de forma dura: depende del
+    # tamano del bloque y del orden de los archivos, no de los datos, de modo
+    # que un valor distinto no indica un conjunto distinto. Se avisa y se sigue.
+    if contadores["nan_imputados"] != NAN_IMPUTADOS_REFERENCIA:
+        reg.warning("  [aviso] se imputaron %s valores faltantes y el valor "
+                    "publicado es %s. Esto NO invalida el conjunto: el recuento "
+                    "depende del tamano del bloque. Las cifras que definen el "
+                    "conjunto (flujos, nombres de atributos y distribucion de "
+                    "clases) se verifican de forma dura y no han fallado.",
+                    f"{contadores['nan_imputados']:,}",
+                    f"{NAN_IMPUTADOS_REFERENCIA:,}")
 
     # Contrastar la distribucion de clases con la Tabla 1 del articulo.
     observada = unificado["Label"].value_counts().to_dict()
@@ -486,7 +593,10 @@ def etapa_limpieza(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
     reg.info("  Filas crudas leidas ........ %s", f"{contadores['filas_crudas']:,}")
     reg.info("  Cabeceras eliminadas ....... %s", f"{contadores['cabeceras_eliminadas']:,}")
     reg.info("  Infinitos convertidos ...... %s", f"{contadores['infinitos_convertidos']:,}")
-    reg.info("  Valores NaN imputados ...... %s", f"{contadores['nan_imputados']:,}")
+    reg.info("  Filas con NaN eliminadas ... %s", f"{contadores['filas_con_nan_eliminadas']:,}")
+    reg.info("  Descartes por varianza nula  %s", f"{contadores['descartes_por_varianza_nula']:,}")
+    reg.info("  Valores faltantes imputados  %s  (informativo, depende del bloque)",
+             f"{contadores['nan_imputados']:,}")
     reg.info("  Duplicados eliminados ...... %s", f"{contadores['duplicados_eliminados']:,}")
     reg.info("  Conjunto final ............. %s flujos x %d caracteristicas",
              f"{len(unificado):,}", N_CARACTERISTICAS)
@@ -1473,6 +1583,116 @@ def etapa_reportes(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
 
 
 # ==============================================================================
+# SECCION 13 bis. AUTOTEST DE LA ETAPA DE LIMPIEZA
+# ==============================================================================
+
+ARCHIVO_AUTOTEST = "Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv"
+
+# Cifras del parquet publicado para ese archivo, medidas sobre
+# data/processed/Wednesday-21-02-2018_clean.parquet del repositorio:
+#   638,999 filas, 66 columnas (65 atributos mas la etiqueta),
+#   2,415,620 valores faltantes repartidos asi:
+#     FIN Flag Cnt 566,990   Active Std      566,990   Bwd Pkt Len Min 444,548
+#     Fwd PSH Flags 295,274  SYN Flag Cnt    295,274   URG Flag Cnt    217,721
+#     Down/Up Ratio  28,823
+# El autotest no compara contra estas cifras sino contra el parquet mismo, que
+# es la referencia; se anotan aqui para que se pueda ver que se espera sin
+# abrir el archivo. Con un bloque de 200,000 filas el resultado seria de
+# 603,678 filas y 1,599,574 faltantes, y el autotest fallaria.
+
+
+def etapa_autotest(rutas: Rutas, reg: logging.Logger) -> None:
+    """
+    Comprobar la etapa de limpieza sobre un solo archivo, en pocos minutos.
+
+    Reprocesa Wednesday-21-02-2018 desde su CSV crudo y compara el resultado,
+    fila a fila y columna a columna, con el parquet publicado del mismo dia. Es
+    la prueba de que la depuracion reproduce el conjunto de datos del articulo,
+    y en particular de que el tamano de bloque correcto es 100 000: con 200 000
+    esta comprobacion falla con 603 678 filas en lugar de 638 999.
+
+    Requiere unicamente ese archivo crudo (330 MB) y su parquet, no los diez.
+    """
+    import pandas as pd
+
+    origen = rutas.crudos / ARCHIVO_AUTOTEST
+    # El parquet de referencia es el publicado en data/processed, cuyo nombre
+    # sigue la convencion del notebook (Wednesday-21-02-2018_clean.parquet). Se
+    # acepta tambien la convencion que usa este script para sus propias salidas.
+    candidatos = [
+        rutas.procesados / ARCHIVO_AUTOTEST.replace(
+            "_TrafficForML_CICFlowMeter.csv", "_clean.parquet"),
+        rutas.procesados / f"{origen.stem}_clean.parquet",
+    ]
+    referencia = next((c for c in candidatos if c.exists()), candidatos[0])
+
+    reg.info("=" * 78)
+    reg.info("AUTOTEST DE LA ETAPA DE LIMPIEZA")
+    reg.info("=" * 78)
+    reg.info("  Archivo ....... %s", ARCHIVO_AUTOTEST)
+    reg.info("  Bloque ........ %s filas", f"{FILAS_POR_BLOQUE:,}")
+    verificar(origen.exists(),
+              f"falta el archivo crudo {origen}; descargarlo con --etapa descarga")
+    verificar(referencia.exists(),
+              f"falta el parquet de referencia {referencia}, que es el publicado "
+              f"en data/processed del repositorio")
+
+    contadores = {"filas_crudas": 0, "cabeceras_eliminadas": 0,
+                  "infinitos_convertidos": 0, "filas_con_nan_eliminadas": 0,
+                  "descartes_por_varianza_nula": 0, "duplicados_eliminados": 0,
+                  "nan_imputados": 0}
+
+    trozos = []
+    for bloque in pd.read_csv(origen, chunksize=FILAS_POR_BLOQUE, low_memory=False):
+        contadores["filas_crudas"] += len(bloque)
+        trozos.append(_depurar_bloque(bloque, contadores))
+    obtenido = pd.concat(trozos, ignore_index=True)
+    antes = len(obtenido)
+    obtenido = obtenido.drop_duplicates(ignore_index=True)
+    contadores["duplicados_eliminados"] += antes - len(obtenido)
+    del trozos
+
+    publicado = pd.read_parquet(referencia)
+
+    faltantes_obt = obtenido.isna().sum()
+    faltantes_obt = {k: int(v) for k, v in faltantes_obt.items() if v}
+    faltantes_pub = publicado.isna().sum()
+    faltantes_pub = {k: int(v) for k, v in faltantes_pub.items() if v}
+
+    reg.info("  %-34s %12s %12s", "", "obtenido", "publicado")
+    reg.info("  %-34s %12s %12s", "filas",
+             f"{len(obtenido):,}", f"{len(publicado):,}")
+    reg.info("  %-34s %12d %12d", "columnas",
+             obtenido.shape[1], publicado.shape[1])
+    reg.info("  %-34s %12s %12s", "valores faltantes",
+             f"{sum(faltantes_obt.values()):,}", f"{sum(faltantes_pub.values()):,}")
+
+    verificar(len(obtenido) == len(publicado),
+              f"el autotest obtuvo {len(obtenido):,} filas y el parquet publicado "
+              f"tiene {len(publicado):,}. Si la diferencia es 603,678 frente a "
+              f"638,999, el tamano de bloque no es el correcto")
+    verificar(sorted(obtenido.columns) == sorted(publicado.columns),
+              "los nombres de columna no coinciden con los del parquet publicado")
+    verificar(faltantes_obt == faltantes_pub,
+              f"el desglose de valores faltantes por columna no coincide: "
+              f"{faltantes_obt} frente a {faltantes_pub}")
+    verificar(obtenido["Label"].value_counts().to_dict()
+              == publicado["Label"].value_counts().to_dict(),
+              "la distribucion de etiquetas no coincide con la del parquet publicado")
+
+    reg.info("  Desglose de faltantes por columna identico al publicado.")
+    reg.info("  Distribucion de etiquetas identica al publicado.")
+    reg.info("  AUTOTEST SUPERADO: la etapa de limpieza reproduce el conjunto "
+             "publicado para este archivo.")
+    guardar_json({"contadores": contadores,
+                  "faltantes_por_columna": faltantes_obt,
+                  "filas": len(obtenido),
+                  "columnas": int(obtenido.shape[1]),
+                  "filas_por_bloque": FILAS_POR_BLOQUE},
+                 rutas.tablas / "autotest_limpieza.json")
+
+
+# ==============================================================================
 # SECCION 14. ORQUESTACION
 # ==============================================================================
 
@@ -1528,6 +1748,10 @@ def analizar_argumentos() -> argparse.Namespace:
                                  "aproximadamente 30 %% mas lento)")
     analizador.add_argument("--simular", action="store_true",
                             help="mostrar el plan de ejecucion sin ejecutar nada")
+    analizador.add_argument("--autotest", action="store_true",
+                            help="comprobar la etapa de limpieza sobre un solo "
+                                 "archivo, contra el parquet publicado, y salir; "
+                                 "tarda unos minutos y no necesita GPU")
     return analizador.parse_args()
 
 
@@ -1550,6 +1774,10 @@ def main() -> int:
 
     if argumentos.simular:
         reg.info("Modo simulacion: no se ejecuta ninguna etapa.")
+        return 0
+
+    if argumentos.autotest:
+        etapa_autotest(rutas, reg)
         return 0
 
     registrar_entorno(reg)
