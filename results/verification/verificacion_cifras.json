@@ -1,0 +1,163 @@
+{
+  "entorno": {
+    "python": "3.13.15",
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "pyarrow": "23.0.1",
+    "fecha": "2026-10-04 15:31",
+    "colab": true
+  },
+  "declarado": {
+    "flujos_crudos": 13087277,
+    "flujos_limpios": 11346511,
+    "valores_faltantes": 3270477,
+    "n_atributos": 65,
+    "n_clases": 15,
+    "particiones": [
+      7947096,
+      1697438,
+      1701977
+    ]
+  },
+  "medido": {
+    "flujos_crudos": 16233002,
+    "flujos_limpios": 11346511,
+    "valores_faltantes_en_los_65": 3270477,
+    "valores_faltantes_todas_las_columnas": 3328167,
+    "n_atributos": 65,
+    "n_clases": 15
+  },
+  "coincidencias": {
+    "flujos_crudos": false,
+    "flujos_limpios": true,
+    "valores_faltantes": true,
+    "tabla1": true
+  },
+  "filas_crudas_por_archivo": {
+    "Friday-02-03-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Friday-16-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Friday-23-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Thuesday-20-02-2018_TrafficForML_CICFlowMeter.csv": 7948748,
+    "Thursday-01-03-2018_TrafficForML_CICFlowMeter.csv": 331125,
+    "Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv": 1048575,
+    "Wednesday-28-02-2018_TrafficForML_CICFlowMeter.csv": 613104
+  },
+  "por_archivo": {
+    "Friday-02-03-2018": {
+      "filas": 819904,
+      "atributos": 65,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    },
+    "Friday-16-02-2018": {
+      "filas": 591901,
+      "atributos": 65,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    },
+    "Friday-23-02-2018": {
+      "filas": 905181,
+      "atributos": 65,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    },
+    "Thuesday-20-02-2018": {
+      "filas": 5435425,
+      "atributos": 65,
+      "nan_todas": 599771,
+      "nan_en_los_65": 599771
+    },
+    "Thursday-01-03-2018": {
+      "filas": 253221,
+      "atributos": 67,
+      "nan_todas": 57690,
+      "nan_en_los_65": 0
+    },
+    "Thursday-15-02-2018": {
+      "filas": 794613,
+      "atributos": 65,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    },
+    "Thursday-22-02-2018": {
+      "filas": 829894,
+      "atributos": 65,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    },
+    "Wednesday-14-02-2018": {
+      "filas": 619342,
+      "atributos": 65,
+      "nan_todas": 255086,
+      "nan_en_los_65": 255086
+    },
+    "Wednesday-21-02-2018": {
+      "filas": 638999,
+      "atributos": 65,
+      "nan_todas": 2415620,
+      "nan_en_los_65": 2415620
+    },
+    "Wednesday-28-02-2018": {
+      "filas": 458031,
+      "atributos": 67,
+      "nan_todas": 0,
+      "nan_en_los_65": 0
+    }
+  },
+  "faltantes_por_columna": {
+    "FIN Flag Cnt": 1034990,
+    "Active Std": 817451,
+    "Bwd Pkt Len Min": 444548,
+    "Fwd PSH Flags": 295274,
+    "SYN Flag Cnt": 295274,
+    "URG Flag Cnt": 217887,
+    "RST Flag Cnt": 68115,
+    "ECE Flag Cnt": 68115,
+    "Fwd URG Flags": 28845,
+    "CWE Flag Count": 28845,
+    "Down/Up Ratio": 28823
+  },
+  "faltantes_por_columna_en_los_65": {
+    "FIN Flag Cnt": 1034990,
+    "Active Std": 817451,
+    "Bwd Pkt Len Min": 444548,
+    "Fwd PSH Flags": 295274,
+    "SYN Flag Cnt": 295274,
+    "URG Flag Cnt": 217887,
+    "RST Flag Cnt": 68115,
+    "ECE Flag Cnt": 68115,
+    "Down/Up Ratio": 28823
+  },
+  "distribucion_de_clases": {
+    "Benign": 9937805,
+    "DDoS attacks-LOIC-HTTP": 575772,
+    "DDOS attack-HOIC": 276464,
+    "DoS attacks-Hulk": 145199,
+    "Bot": 144535,
+    "Infilteration": 118468,
+    "SSH-Bruteforce": 94143,
+    "DoS attacks-GoldenEye": 41406,
+    "DoS attacks-Slowloris": 9908,
+    "DDOS attack-LOIC-UDP": 1730,
+    "Brute Force -Web": 570,
+    "Brute Force -XSS": 229,
+    "FTP-BruteForce": 144,
+    "SQL Injection": 83,
+    "DoS attacks-SlowHTTPTest": 55
+  },
+  "parte_2_archivo_grande": {
+    "filas": 5435401,
+    "faltantes": 999646,
+    "faltantes_por_columna": {
+      "Bwd Pkt Len Min": 99969,
+      "Pkt Len Min": 99969,
+      "Active Std": 299921,
+      "FIN Flag Cnt": 499787
+    },
+    "filas_crudas": 7948748,
+    "coincide": false
+  }
+}

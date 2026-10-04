@@ -120,20 +120,42 @@ ARCHIVOS_ORIGEN = [
     "Thuesday-20-02-2018_TrafficForML_CICFlowMeter.csv",
 ]
 
-# Tamano de bloque de lectura. Se fija en 100 000 filas porque es el valor con
-# el que se genero el conjunto de datos publicado, y NO es un parametro libre.
-# La depuracion descarta los atributos cuya varianza es nula DENTRO del bloque,
-# de modo que el tamano del bloque determina cuantos atributos se pierden en
-# cada uno y, por esa via, cuantos flujos sobreviven a la eliminacion de
-# duplicados exactos. Comprobado sobre Wednesday-21-02-2018 contra el parquet
-# publicado: con 100 000 se obtienen 638 999 flujos y 2 415 620 valores
-# faltantes, que es exactamente lo publicado; con 200 000 se obtienen 603 678 y
-# 1 599 574. El notebook declara 200 000 porque el valor se cambio despues de
-# haber escrito los parquets y su funcion de limpieza omite los archivos que ya
-# existen en disco, de modo que el valor nuevo nunca llego a aplicarse.
-# Ejecutese con --autotest para verificar esto en unos minutos sobre un solo
-# archivo, sin necesidad de recorrer el conjunto completo.
-FILAS_POR_BLOQUE = 100_000
+# Tamano de bloque de lectura. NO es un parametro libre y NO es el mismo para
+# los diez archivos. La depuracion descarta los atributos cuya varianza es nula
+# DENTRO del bloque, de modo que el tamano del bloque determina cuantos
+# atributos se pierden en cada uno y, por esa via, cuantos flujos sobreviven a
+# la eliminacion de duplicados exactos.
+#
+# Los valores de abajo son los que reproducen los parquets publicados, y se
+# determinaron reprocesando cada archivo desde su CSV crudo y comparando con su
+# parquet. El resultado:
+#
+#   Thuesday-20-02-2018    200,000   5,435,425 filas y 599,771 faltantes
+#   Wednesday-21-02-2018   100,000     638,999 filas y 2,415,620 faltantes
+#   Wednesday-14-02-2018   100,000     619,342 filas y 255,086 faltantes
+#   Thursday-01-03-2018    100,000     253,221 filas y 57,690 faltantes
+#   los otros seis         indiferente  ningun atributo se descarto en ningun
+#                                       bloque, asi que su resultado no depende
+#                                       del tamano (comprobado en
+#                                       Wednesday-28-02-2018 con 100,000 y
+#                                       200,000: resultado identico)
+#
+# La falta de uniformidad no fue deliberada: el notebook original omite los
+# archivos que ya existen en disco, de modo que cada uno quedo con el valor que
+# estaba vigente el dia que se genero. Se conserva aqui porque el objetivo es
+# reproducir el conjunto publicado, no rehacerlo.
+#
+# Ejecutese con --autotest para comprobarlo en unos minutos sobre un archivo.
+FILAS_POR_BLOQUE_POR_OMISION = 100_000
+FILAS_POR_BLOQUE_POR_ARCHIVO = {
+    "Thuesday-20-02-2018_TrafficForML_CICFlowMeter.csv": 200_000,
+}
+
+
+def filas_por_bloque(nombre_archivo: str) -> int:
+    """Tamano de bloque con el que se genero el parquet de ese archivo."""
+    return FILAS_POR_BLOQUE_POR_ARCHIVO.get(nombre_archivo,
+                                            FILAS_POR_BLOQUE_POR_OMISION)
 
 # Columnas descartadas por nombre. La lista es identica a la del notebook
 # publicado y el orden no importa, pero su contenido si: son los metadatos de
@@ -201,7 +223,12 @@ ATRIBUTOS_FINALES = [
 # Valores verificados del conjunto depurado. El script aborta si no se alcanzan,
 # de modo que cualquier divergencia respecto del experimento publicado se
 # detecta en el momento en que se produce y no se propaga en silencio.
-FLUJOS_CRUDOS_ESPERADOS = 13_087_277
+# Medido contando las lineas de los diez CSV y restando el encabezado de cada
+# uno. Siete de los diez archivos traen exactamente 1,048,575 filas, que es el
+# limite de filas de Excel y un artefacto conocido de como se publico el
+# conjunto. El valor 13,087,277 que se reporto antes omitia tres de esos siete
+# archivos: 16,233,002 - 3 x 1,048,575 = 13,087,277.
+FLUJOS_CRUDOS_ESPERADOS = 16_233_002
 FLUJOS_LIMPIOS_ESPERADOS = 11_346_511
 N_CARACTERISTICAS = 65
 N_CLASES = 15
@@ -523,8 +550,10 @@ def etapa_limpieza(rutas: Rutas, reg: logging.Logger, forzar: bool) -> None:
         salida = rutas.procesados / f"{origen.stem}_clean.parquet"
         reg.info("  [%2d/10] %s", indice, nombre)
 
+        bloque_filas = filas_por_bloque(nombre)
+        reg.info("          bloque de %s filas", f"{bloque_filas:,}")
         trozos = []
-        for bloque in pd.read_csv(origen, chunksize=FILAS_POR_BLOQUE, low_memory=False):
+        for bloque in pd.read_csv(origen, chunksize=bloque_filas, low_memory=False):
             contadores["filas_crudas"] += len(bloque)
             trozos.append(_depurar_bloque(bloque, contadores))
 
@@ -1629,8 +1658,9 @@ def etapa_autotest(rutas: Rutas, reg: logging.Logger) -> None:
     reg.info("=" * 78)
     reg.info("AUTOTEST DE LA ETAPA DE LIMPIEZA")
     reg.info("=" * 78)
+    bloque_filas = filas_por_bloque(ARCHIVO_AUTOTEST)
     reg.info("  Archivo ....... %s", ARCHIVO_AUTOTEST)
-    reg.info("  Bloque ........ %s filas", f"{FILAS_POR_BLOQUE:,}")
+    reg.info("  Bloque ........ %s filas", f"{bloque_filas:,}")
     verificar(origen.exists(),
               f"falta el archivo crudo {origen}; descargarlo con --etapa descarga")
     verificar(referencia.exists(),
@@ -1643,7 +1673,7 @@ def etapa_autotest(rutas: Rutas, reg: logging.Logger) -> None:
                   "nan_imputados": 0}
 
     trozos = []
-    for bloque in pd.read_csv(origen, chunksize=FILAS_POR_BLOQUE, low_memory=False):
+    for bloque in pd.read_csv(origen, chunksize=bloque_filas, low_memory=False):
         contadores["filas_crudas"] += len(bloque)
         trozos.append(_depurar_bloque(bloque, contadores))
     obtenido = pd.concat(trozos, ignore_index=True)
@@ -1670,7 +1700,8 @@ def etapa_autotest(rutas: Rutas, reg: logging.Logger) -> None:
     verificar(len(obtenido) == len(publicado),
               f"el autotest obtuvo {len(obtenido):,} filas y el parquet publicado "
               f"tiene {len(publicado):,}. Si la diferencia es 603,678 frente a "
-              f"638,999, el tamano de bloque no es el correcto")
+              f"638,999, el tamano de bloque de este archivo no es el correcto; "
+              f"veanse las notas de FILAS_POR_BLOQUE_POR_ARCHIVO")
     verificar(sorted(obtenido.columns) == sorted(publicado.columns),
               "los nombres de columna no coinciden con los del parquet publicado")
     verificar(faltantes_obt == faltantes_pub,
@@ -1688,7 +1719,7 @@ def etapa_autotest(rutas: Rutas, reg: logging.Logger) -> None:
                   "faltantes_por_columna": faltantes_obt,
                   "filas": len(obtenido),
                   "columnas": int(obtenido.shape[1]),
-                  "filas_por_bloque": FILAS_POR_BLOQUE},
+                  "filas_por_bloque": bloque_filas},
                  rutas.tablas / "autotest_limpieza.json")
 
 

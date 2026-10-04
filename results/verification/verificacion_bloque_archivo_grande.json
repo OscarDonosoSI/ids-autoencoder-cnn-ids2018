@@ -1,0 +1,64 @@
+{
+  "archivo": "Thuesday-20-02-2018",
+  "publicado": {
+    "filas": 5435425,
+    "columnas": 66,
+    "nulos": {
+      "Active Std": 199886,
+      "FIN Flag Cnt": 399885
+    }
+  },
+  "resultados": {
+    "200000": {
+      "bloque": 200000,
+      "filas_crudas": 7948748,
+      "filas": 5435425,
+      "columnas": 66,
+      "faltantes": 599771,
+      "faltantes_por_columna": {
+        "Active Std": 199886,
+        "FIN Flag Cnt": 399885
+      },
+      "bloques_que_descartaron_cada_columna": {
+        "FIN Flag Cnt": 2,
+        "CWE Flag Count": 40,
+        "Fwd URG Flags": 40,
+        "Active Std": 1
+      },
+      "segundos": 279,
+      "coincide_filas": true,
+      "coincide_nulos": true,
+      "coincide_completo": true
+    },
+    "100000": {
+      "bloque": 100000,
+      "filas_crudas": 7948748,
+      "filas": 5435630,
+      "columnas": 66,
+      "faltantes": 999646,
+      "faltantes_por_columna": {
+        "Bwd Pkt Len Min": 99969,
+        "Pkt Len Min": 99969,
+        "Active Std": 299921,
+        "FIN Flag Cnt": 499787
+      },
+      "bloques_que_descartaron_cada_columna": {
+        "FIN Flag Cnt": 5,
+        "CWE Flag Count": 80,
+        "Fwd URG Flags": 80,
+        "Active Std": 3,
+        "Bwd Pkt Len Min": 1,
+        "Pkt Len Min": 1
+      },
+      "segundos": 276,
+      "coincide_filas": false,
+      "coincide_nulos": false,
+      "coincide_completo": false
+    }
+  },
+  "entorno": {
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "fecha": "2026-10-04 16:15"
+  }
+}

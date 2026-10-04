@@ -28,7 +28,8 @@ The headline result is that those two decisions move the reported score by rough
 | Release | Contents |
 |---|---|
 | **v1.0** (commit `68308eb`, 30 July 2026) | Results of record for Tables 4, 5, 6 and A2 of the manuscript: autoencoder, binary CNN-1D and multiclass CNN-1D, single seed 42. |
-| **v2.1** | Corrects the numerical errors identified in the second round of revision, documents the origin of the imputed missing values and fixes the cleaning chunk size at the value with which the published dataset was generated. |
+| **v2.2** | Corrects the raw flow count to 16,233,002, records the per-file cleaning chunk size, and deposits the measurements that back the reported dataset figures under `results/verification/`. |
+| **v2.1** | Corrects the numerical errors identified in the second round of revision and documents the origin of the imputed missing values. Its copy of the reproduction script asserts an incorrect raw flow count and aborts during the cleaning stage; use v2.2. |
 | **v2.0** | Adds the three-seed class-weighting ablation, the run-to-run variability analysis, the Random Forest and XGBoost baselines, the end-to-end reproduction script and this README. |
 
 `v1.0` is preserved unchanged so that every figure cited in the published article remains retrievable at the commit the Data Availability Statement names.
@@ -83,7 +84,7 @@ python reproducir_pipeline_completo.py --raiz ./ids2018 --etapa ablacion
 
 ## Verification built into the pipeline
 
-The cleaning stage aborts rather than continue if the data does not match the published dataset. It checks the raw flow count (13,087,277), the cleaned flow count (11,346,511), the names of the 65 features and every one of the fifteen per-class counts in Table 1. The partition stage checks the three subset sizes (7,947,096 / 1,697,438 / 1,701,977). The number of imputed missing values is reported but deliberately not asserted, for the reason given next. Any divergence in the asserted quantities surfaces at the point where it occurs instead of propagating silently into the metrics.
+The cleaning stage aborts rather than continue if the data does not match the published dataset. It checks the raw flow count (16,233,002), the cleaned flow count (11,346,511), the names of the 65 features and every one of the fifteen per-class counts in Table 1. The partition stage checks the three subset sizes (7,947,096 / 1,697,438 / 1,701,977). The measurements that back the raw flow count, the cleaned flow count, the imputed missing values and their per-column breakdown, and the per-file chunk size, are deposited under `results/verification/` so that they can be contrasted without re-running the pipeline. The number of imputed missing values is reported but deliberately not asserted, for the reason given next. Any divergence in the asserted quantities surfaces at the point where it occurs instead of propagating silently into the metrics.
 
 ### Why the missing values exist, and why the chunk size matters
 
@@ -91,9 +92,21 @@ The cleaning stage drops any attribute whose variance is zero *within a chunk*. 
 
 The consequence is that the chunk size, which looks like a memory-tuning parameter with no bearing on the result, influences how many flows survive deduplication. For `Wednesday-21-02-2018` it yields 638,999 flows at 100,000 rows per chunk and 603,678 at 200,000, with 2,415,620 and 1,599,574 missing values respectively.
 
-`reproducir_pipeline_completo.py --raiz <dir> --autotest` verifies this in about twenty seconds plus the time to read one file. It reprocesses `Wednesday-21-02-2018` from its raw CSV and compares the result against the published parquet for that day, row count, column names, missing values per column and label distribution. It needs only that one source file (330 MB) and no GPU. The check passes at 100,000 and fails at 200,000, which is what establishes the value.
+**The chunk size was not the same for all ten files.** Each one was reprocessed from its raw CSV and compared against its published parquet; these are the values that reproduce them:
 
-**The published dataset was generated with a chunk size of 100,000.** The notebook records 200,000 because the parameter was changed after the parquet files had been written, and `procesar_archivo` skips files that already exist on disk, so the new value never took effect. `reproducir_pipeline_completo.py` fixes the value at 100,000; reproducing the dataset with 200,000 is not possible.
+| Source file | Chunk size | Reproduces |
+|---|---|---|
+| `Thuesday-20-02-2018` | 200,000 | 5,435,425 flows, 599,771 missing values |
+| `Wednesday-21-02-2018` | 100,000 | 638,999 flows, 2,415,620 missing values |
+| `Wednesday-14-02-2018` | 100,000 | 619,342 flows, 255,086 missing values |
+| `Thursday-01-03-2018` | 100,000 | 253,221 flows, 57,690 missing values |
+| the other six | makes no difference | no attribute was dropped in any chunk |
+
+For those six files no attribute ever had zero variance within a chunk, so the concatenation is identical to processing the whole file at once and the parameter has no effect; this was confirmed on `Wednesday-28-02-2018`, which gives the same 458,031 flows and no missing values at both 100,000 and 200,000.
+
+The inconsistency was not deliberate. The notebook records 200,000 everywhere, but `procesar_archivo` skips files that already exist on disk, so each file kept whichever value was in force on the day it was written, and a later change to the parameter never took effect. `reproducir_pipeline_completo.py` carries the per-file values in `FILAS_POR_BLOQUE_POR_ARCHIVO` because its purpose is to reproduce the published dataset, not to regenerate it.
+
+`reproducir_pipeline_completo.py --raiz <dir> --autotest` verifies the cleaning stage in about twenty seconds plus the time to read one file. It reprocesses `Wednesday-21-02-2018` from its raw CSV and compares the result against the published parquet for that day: row count, column names, missing values per column and label distribution. It needs only that one source file (330 MB) and no GPU, and it fails if the chunk size for that file is changed.
 
 ---
 
